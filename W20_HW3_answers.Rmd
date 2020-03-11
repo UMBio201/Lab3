@@ -1,0 +1,210 @@
+---
+title: "Homework 3"
+author: "Kristi Gdanetz MacCready"
+date: "12/11/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "~/Documents/UMBio201/Lab3/")
+```
+
+# Load packages
+```{r Load packages, eval=TRUE, echo=TRUE, message=FALSE, warning=FALSE, results='hide'}
+library(tidyverse)
+library(readxl)
+library(broom)
+library(cowplot)
+set.seed(7)
+```
+
+# Import data
+Import `Lab3_data.txt` and re-create the lab3_df and butyrate_long data frames from Lab 3 PArt 2, if they are not currently in your global environment. 
+```{r}
+# space to import if needed 
+```
+
+# Question 1
+Repeat the process used in Lab3 Part2 to conduct the paired t-test for the 1xdaily group. You can use the code already written and update variable and data frame names as needed. Remember to check the assumptions. Write your conclusions after the last code block. 
+```{r}
+# check assumptions
+
+#Sample Size
+butyrate_long %>%
+  filter(study_week == "week1" | study_week == "week3",
+         supplement_consumed == "BRMPS", 
+         frequency == "1xdaily") %>%  
+  group_by(frequency, study_week) %>% 
+  summarise(sample_size = n()) #66 & 64 
+# Sample size is good, week1 = 66 and week3 = 64
+
+# Normality Check
+wk1_1x <- butyrate_long %>%
+  filter(study_week == "week1", 
+         supplement_consumed == "BRMPS", 
+         frequency == "1xdaily") 
+shapiro.test(wk1_1x$butyrate_mean) #p-value = 0.0002603
+ggplot(wk1_1x, aes(x = butyrate_mean)) + geom_histogram()
+# Normality p-values were low, so use qqplots:
+qqnorm(wk1_1x$butyrate_mean); qqline(wk1_1x$butyrate_mean)
+
+wk3_1x <- butyrate_long %>%
+  filter(study_week == "week3", 
+         supplement_consumed == "BRMPS", 
+         frequency == "1xdaily") 
+shapiro.test(wk3_1x$butyrate_mean) #p-value = 0.001616
+ggplot(wk3_1x, aes(x = butyrate_mean)) + geom_histogram()
+# Normality p-values were low, so use qqplots:
+qqnorm(wk3_1x$butyrate_mean); qqline(wk3_1x$butyrate_mean)
+# Normal according to qqplots
+
+# Equal Variances
+var.test(x = wk1_1x$butyrate_mean, 
+         y = wk3_1x$butyrate_mean, 
+         alternative = "two.sided") 
+# Variances equal (p-value = 0.6408)
+```
+[2 points for this assumption checking section]: 1/2 point each for sample size, week 1 normality, week 3 normality, variance. 
+
+```{r}
+# conduct test
+x1_df <- inner_join(x = wk1_1x, y = wk3_1x,
+                    by = c("participant_id", "frequency", 
+                           "semester", "supplement_consumed", "quantity_compliant")) %>%
+  rename(butyrate_mean_wk1 = butyrate_mean.x,
+         butyrate_mean_wk3 = butyrate_mean.y) %>%
+  select(-starts_with("study_week"))
+
+t.test(x = x1_df$butyrate_mean_wk1, 
+       y = x1_df$butyrate_mean_wk3, 
+       var.equal = TRUE, 
+       paired = TRUE, 
+       alternative = "less") #p-value = 0.1683 
+```
+
+Was there a difference in butyrate concentration between week1 and week3 in individuals who consumped BRMPS once a day? How do these results compare with the twice a day group; does this make sense in light of the figure you generated during Lab3? 
+
+Large p-value indicates the fecal butyrate concentration is not different in individuals who consumed BRMPS once a day. The figure created in 175-186 does not appear to show a difference in the 1xdaily group, which we observed for the 2xdaily group in the figure, and was verified with a t-test. 
+
+[2 points for t-test section]: 1 point for all correct arguments and p-value, 1 point for writing answers to questions & conclusion. 
+
+
+# Question 2 
+Use Lab3_data.txt file to determine if there was a change in acetate concentrations for participants who consumed BRMPS 2xdaily. Remember to subset the data frame for quality and relevant measurements (name the resulting data frame q2_acetate), and check all assumptions. Create a plot of the data used, save final the data frame and plot. Answer any questions listed below.
+```{r}
+q2_acetate <- lab3_df %>%
+  # use select to drop extra columns
+  select(-starts_with("but"), -starts_with("pro"), 
+         -starts_with("pH"), -starts_with("bristol"), 
+         -starts_with("blood"), -ends_with("median")) %>%
+  filter(semester != "Winter2015",
+         study_week == "week1" | study_week == "week3",
+         supplement_consumed == "BRMPS",
+         quantity_compliant == "yes",
+         frequency == "2xdaily") %>%
+  drop_na(acetate_mean)
+```
+
+What are the dimensions of the data frame?
+[1 point] 264 rows, 7 columns 
+
+```{r}
+# acetate plot
+q2_acetate %>%
+  filter(frequency == "2xdaily") %>%
+  ggplot(aes(x = study_week, 
+             y = acetate_mean)) + 
+  geom_violin() + geom_jitter()
+```
+Is there a visual difference in acetate concentrations? Explain your answer.
+[1 point]
+
+```{r}
+# check assumptions
+
+# Sample Size
+q2_acetate %>%
+  filter(study_week == "week1" | study_week == "week3",
+         supplement_consumed == "BRMPS", 
+         frequency == "2xdaily") %>%  
+  group_by(frequency, study_week) %>% 
+  summarise(sample_size = n()) #66 & 67
+
+# Normality Check
+ace_wk1_2x <- q2_acetate %>%
+  filter(study_week == "week1", 
+         supplement_consumed == "BRMPS", 
+         frequency == "2xdaily") 
+shapiro.test(ace_wk1_2x$acetate_mean) #p-value = 5.093e-05
+ggplot(ace_wk1_2x, aes(x = acetate_mean)) + geom_histogram()
+qqnorm(ace_wk1_2x$acetate_mean); qqline(ace_wk1_2x$acetate_mean)
+
+ace_wk3_2x <- q2_acetate %>%
+  filter(study_week == "week3", 
+         supplement_consumed == "BRMPS", 
+         frequency == "2xdaily") 
+shapiro.test(ace_wk3_2x$acetate_mean) #p-value = 0.004495
+ggplot(ace_wk3_2x, aes(x = acetate_mean)) + geom_histogram()
+qqnorm(ace_wk3_2x$acetate_mean); qqline(ace_wk3_2x$acetate_mean)
+
+# Equal Variances
+var.test(x = ace_wk1_2x$acetate_mean, 
+         y = ace_wk3_2x$acetate_mean, 
+         alternative = "two.sided") #p-value = 0.5504
+```
+
+Were any of the assumptions violated? Based on this, which test will you use?
+[1 point] The plots were not normal distribution. Non-parametric or Wilcox.
+
+```{r}
+# conduct wilcoxon rank sum test
+wilcox.test(x = ace_wk1_2x$acetate_mean, 
+            y = ace_wk3_2x$acetate_mean, 
+            paired = FALSE,
+            alternative = "less") #p-value = 0.01683
+```
+
+What was the p-value of the test? What are your conclusions? 
+
+[1 point] P value was 0.01683. The acetate concentrations are significantly higher from weeks 1 to 3 in the fecal samples of those that consumed BRMPS in the study.
+
+```{r}
+# save final data frame
+write_delim(q2_acetate, path = "curated_data/q2_acetate.txt", delim = "\t")
+
+# save plot
+ace_plot <- ggplot(data = q2_acetate,
+       aes(x = study_week, 
+           y = acetate_mean)) + 
+  geom_violin() + geom_jitter()
+
+save_plot(ace_plot,
+          filename = "figures/acetate_plot.pdf")
+```
+
+[1 point] for save & export, 1/2 point for code, 1/2 point for upload to GitHub. 
+
+# Question 3
+Does breath hydrogen (H2) increase during week3 in individuals who consumed BRMPS? Start by importing the Lab3_breath.txt file, decide how you will subset the data (hint: may need to use some functions learned last week), create a plot, check assumptions, and conduct the statistical test. Write your conclusions at the end of your code, using the plot and statistical results to support your answer. Save the final data frame and plot. 
+```{r}
+# code block for import and subsetting
+```
+
+```{r}
+# code block for plot
+```
+
+```{r}
+# code block for asummptions and test
+```
+
+```{r}
+# code block for export and save 
+```
+
+< Did breath hydrogen increase? write conclusions here > 
+
+
+-----
+end
